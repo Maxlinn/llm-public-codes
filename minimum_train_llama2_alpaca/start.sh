@@ -16,6 +16,7 @@ torchrun --nproc_per_node=$NGPUS --master_port=$PORT train.py \
     --bf16 True \
     --output_dir "$OUTPUT_DIR" \
     --num_train_epochs 3 \
+    --optim "adamw_torch" \
     --per_device_train_batch_size 1 \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 32 \
@@ -30,4 +31,4 @@ torchrun --nproc_per_node=$NGPUS --master_port=$PORT train.py \
     --logging_steps 1 \
     --fsdp "full_shard auto_wrap" \
     --fsdp_transformer_layer_cls_to_wrap 'LlamaDecoderLayer' \
-    --tf32 True 
+    --tf32 True \
