@@ -82,23 +82,25 @@ class AlpacaLazyDataset(Dataset):
         for input_ids, attention_mask, labels in zip(input_ids_ls, attention_mask_ls, labels_ls):
             length_to_pad = max_length - len(input_ids)
             
-            input_ids.extend([self.pad_token_id] * length_to_pad)
+            input_ids.extend([self.tokenizer.pad_token_id] * length_to_pad)
             attention_mask.extend([0] * length_to_pad)
             labels.extend([-100] * length_to_pad)
         
         # Huggingface Trainer要求返回dict, Trainer会利用key为input_ids, attention_mask, labels的项
-        return {
-            'input_ids': torch.LongTensor(input_ids),
-            'attention_mask': torch.LongTensor(attention_mask),
-            'labels': torch.LongTensor(labels)
+        # 这些tensor的形状都是[batch_size, seq_len]
+        ret = {
+            'input_ids': torch.LongTensor(input_ids_ls),
+            'attention_mask': torch.LongTensor(attention_mask_ls),
+            'labels': torch.LongTensor(labels_ls)
         }
+        return ret
     
     
 if __name__ == '__main__':
     parser = HfArgumentParser((MyArguments, TrainingArguments))
     my_args, training_args = parser.parse_args_into_dataclasses()
-    
-    tokenizer = AutoTokenizer.from_pretrained(my_args.model_path, trust_remote_code=True)
+
+    tokenizer = AutoTokenizer.from_pretrained(my_args.model_name_or_path, trust_remote_code=True, use_fast=False)
     if tokenizer.pad_token is None:
         # 有的模型可能没有pad_token
         #   pad_token其实不会被预测(通过labels实现)
@@ -107,13 +109,13 @@ if __name__ == '__main__':
         tokenizer.pad_token = tokenizer.unk_token
     
     dataset = AlpacaLazyDataset(tokenizer=tokenizer, alpaca_data_path=my_args.data_path)
-    model = AutoModelForCausalLM.from_pretrained(my_args.model_path, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(my_args.model_name_or_path, trust_remote_code=True)
     
     trainer = Trainer(
         model=model,
         train_dataset=dataset,
         eval_dataset=None,
-        training_arguments=training_args,
+        args=training_args,
         data_collator=dataset.collate_fn
     )
     
