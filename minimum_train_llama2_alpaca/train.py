@@ -95,7 +95,8 @@ class AlpacaLazyDataset(Dataset):
     
     
 if __name__ == '__main__':
-    my_args, training_args = HfArgumentParser((MyArguments, TrainingArguments))
+    parser = HfArgumentParser((MyArguments, TrainingArguments))
+    my_args, training_args = parser.parse_args_into_dataclasses()
     
     tokenizer = AutoTokenizer.from_pretrained(my_args.model_path, trust_remote_code=True)
     if tokenizer.pad_token is None:
