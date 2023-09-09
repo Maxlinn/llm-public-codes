@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers import Trainer, TrainingArguments, HfArgumentParser
 # :add: 参考 https://zhuanlan.zhihu.com/p/621488476
-from peft import get_peft_model, TaskType, LoraConfig
+from peft import get_peft_model, LoraConfig
 
 # LoRAConfig常用的参数
 # LoraConfig(
@@ -135,7 +135,6 @@ if __name__ == '__main__':
         target_modules=lora_args.lora_target_modules.split(',') if lora_args else None
     )
 
-    import pdb; pdb.set_trace()
     tokenizer = AutoTokenizer.from_pretrained(my_args.model_name_or_path, trust_remote_code=True, use_fast=False)
     if tokenizer.pad_token is None:
         # 有的模型可能没有pad_token
