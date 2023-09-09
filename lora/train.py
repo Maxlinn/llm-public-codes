@@ -170,3 +170,7 @@ if __name__ == '__main__':
     # peft_model = PeftModel.from_pretrained(model, peft_model_id)
     # 此时peft_model和model一样用
     
+    # 如何合并模型并保存：https://discuss.huggingface.co/t/help-with-merging-lora-weights-back-into-base-model/40968/4
+    # peft_model.merge_and_unload()
+    # peft_model.save_pretrained(save_dir)
+    
