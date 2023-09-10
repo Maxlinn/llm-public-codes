@@ -135,7 +135,6 @@ if __name__ == '__main__':
         target_modules=lora_args.lora_target_modules.split(',') if lora_args else None
     )
 
-    import pdb; pdb.set_trace()
     tokenizer = AutoTokenizer.from_pretrained(my_args.model_name_or_path, trust_remote_code=True, use_fast=False)
     if tokenizer.pad_token is None:
         # 有的模型可能没有pad_token
@@ -161,16 +160,7 @@ if __name__ == '__main__':
     
     trainer.train()
     trainer.save_state()
-    # 默认只会存储 LoRA 的增量权重，所以很省资源
+    # 默认只会存储 LoRA 的权重，所以很省资源
+    #   后续可以通过merge.py来融合LoRA权重到原模型，最终模型结构与原模型一致
     trainer.save_model(output_dir=training_args.output_dir)
-    
-    
-    # 推理时如何加载模型
-    # model = AutoModelForCausalLM.from_pretrained(model_id)
-    # peft_model = PeftModel.from_pretrained(model, peft_model_id)
-    # 此时peft_model和model一样用
-    
-    # 如何合并模型并保存：https://discuss.huggingface.co/t/help-with-merging-lora-weights-back-into-base-model/40968/4
-    # peft_model.merge_and_unload()
-    # peft_model.save_pretrained(save_dir)
     

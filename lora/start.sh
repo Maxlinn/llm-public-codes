@@ -16,13 +16,13 @@ torchrun --nproc_per_node=$NGPUS --master_port=$PORT train.py \
     --output_dir "$OUTPUT_DIR" \
     --num_train_epochs 3 \
     --optim "adamw_torch" \
-    --per_device_train_batch_size 1 \
+    --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 1 \
-    --gradient_accumulation_steps 32 \
+    --gradient_accumulation_steps 8 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
     --save_steps 2000 \
-    --save_total_limit 1 \
+    --save_total_limit 10 \
     --learning_rate 2e-5 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
@@ -35,6 +35,6 @@ torchrun --nproc_per_node=$NGPUS --master_port=$PORT train.py \
     --lora_target_modules q_proj,v_proj 
 
 
-# LoRA models are cheap to train, no need to use fsdp
+# LoRA模型训练很省资源，一般不需要开FSDP
 # --fsdp "full_shard auto_wrap" \
 # --fsdp_transformer_layer_cls_to_wrap 'LlamaDecoderLayer' \

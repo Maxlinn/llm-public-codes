@@ -2,3 +2,4 @@ _*
 !__*
 outputs
 wandb
+__pycache__
