@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers import Trainer, TrainingArguments, HfArgumentParser
 # :add: 参考 https://zhuanlan.zhihu.com/p/621488476
-from peft import get_peft_model, TaskType, LoraConfig
+from peft import get_peft_model, LoraConfig
 
 # LoRAConfig常用的参数
 # LoraConfig(
