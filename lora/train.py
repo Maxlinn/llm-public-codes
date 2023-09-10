@@ -143,8 +143,21 @@ if __name__ == '__main__':
         #   所以设置成什么都可以
         tokenizer.pad_token = tokenizer.unk_token
     
-    dataset = AlpacaLazyDataset(tokenizer=tokenizer, alpaca_data_path=my_args.data_path)
-    model = AutoModelForCausalLM.from_pretrained(my_args.model_name_or_path, trust_remote_code=True)
+    dataset = AlpacaLazyDataset(tokenizer=tokenizer, alpaca_data_path=my_args.data_path)    
+    
+    # 如果`AutoModelForCausalLM.from_pretrained`不加`torch_dtype`参数，则默认使用float32加载模型
+    #   而且trainer内部不会downcast到bf16（即使training_args.bf16==True）
+    #   训练峰值占用是50G
+    # 如果这里加`torch_dtype='auto`参数（推荐），则从config.json中读取类型，对于LLaMA2来说是float16
+    #   训练峰值占用是33G
+    # 如果这里指定`torch_dtype=torch.bfloat16`则使用bfloat16加载全部参数
+    #   训练峰值占用是25G：为什么使用float16会导致显存占用多一些
+    torch_dtype = 'auto'
+    if training_args.bf16:
+        torch_dtype = torch.bfloat16
+    print(f'Loading model with precision: {torch_dtype}')
+    
+    model = AutoModelForCausalLM.from_pretrained(my_args.model_name_or_path, trust_remote_code=True, torch_dtype=torch_dtype)
     
     # :add:
     model = get_peft_model(model, lora_config)
