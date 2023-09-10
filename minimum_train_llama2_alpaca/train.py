@@ -109,7 +109,13 @@ if __name__ == '__main__':
         tokenizer.pad_token = tokenizer.unk_token
     
     dataset = AlpacaLazyDataset(tokenizer=tokenizer, alpaca_data_path=my_args.data_path)
-    model = AutoModelForCausalLM.from_pretrained(my_args.model_name_or_path, trust_remote_code=True)
+    
+    torch_dtype = 'auto'
+    if training_args.bf16:
+        torch_dtype = torch.bfloat16
+    print(f'Loading model with precision: {torch_dtype}')
+    
+    model = AutoModelForCausalLM.from_pretrained(my_args.model_name_or_path, trust_remote_code=True, torch_dtype=torch_dtype)
     
     trainer = Trainer(
         model=model,
