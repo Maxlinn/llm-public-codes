@@ -15,6 +15,8 @@ if __name__ == '__main__':
     if not args.no_tokenizer:
         tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True, use_fast=False)
     
+    # from peft import AutoPeftModelForCausalLM
+    # peft_model= AutoPeftModelForCausalLM.from_pretrained(args.lora_model)
     model = AutoModelForCausalLM.from_pretrained(args.base_model, trust_remote_code=True, torch_dtype='auto')
     peft_model = PeftModel.from_pretrained(model, args.lora_model)
     

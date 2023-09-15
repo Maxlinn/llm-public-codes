@@ -4,21 +4,9 @@ from dataclasses import dataclass
 from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers import Trainer, TrainingArguments, HfArgumentParser
-# :add: 参考 https://zhuanlan.zhihu.com/p/621488476
+# :reference: https://zhuanlan.zhihu.com/p/621488476
 from peft import get_peft_model, LoraConfig
 
-# LoRAConfig常用的参数
-# LoraConfig(
-#     task_type=TaskType.CAUSAL_LM,
-#     # 为了保证新增的LoRA与原参数的值scale一致，实际更新时由Wx变为Wx+(α/r)(BAx)
-#     # 论文中对于LLM，设置α为32
-#     lora_alpha=32,
-#     lora_dropout=0.1,
-#     r=8,
-#     bias="none",
-#     # 向名字带有哪些关键字的参数注入LoRA
-#     target_modules=["q_proj", "v_proj"],
-# )
 
 @dataclass
 class MyArguments:
@@ -27,16 +15,18 @@ class MyArguments:
     # 使用standford alpaca数据集来训练，可从`https://github.com/tatsu-lab/stanford_alpaca/blob/main/alpaca_data.json`下载
     data_path :str = './alpaca_data.json'
 
-# :add:
+# :add: 对应`peft.LoRAConfig`常用的参数
 @dataclass
 class LoraArguments:
     lora_task_type :str = "CAUSAL_LM"
-    lora_r :int = 8
-    lora_alpha :int = 32
+    # d -> r -> d
+    lora_r :int = 8 
+    # 加入更新后，MLP从Wx变为Wx+(α/r)(BAx)，论文中设置为32
+    lora_alpha :int = 32 
     lora_dropout :float = 0.1
     lora_bias :str = "none"
-    # 因为命令行输入列表比较麻烦，所以输入用逗号隔开的字符串，内部做split
-    lora_target_modules :str = ''
+    # 向名字带有哪些关键字的参数注入LoRA，一会先split一下字符串
+    lora_target_modules :str = 'q_proj,v_proj' 
     
 
 class AlpacaLazyDataset(Dataset):
@@ -111,7 +101,8 @@ class AlpacaLazyDataset(Dataset):
             attention_mask.extend([0] * length_to_pad)
             labels.extend([-100] * length_to_pad)
         
-        # Huggingface Trainer要求返回dict, Trainer会利用key为input_ids, attention_mask, labels的项
+        # Huggingface Trainer要求返回dict
+        # Trainer会利用key为input_ids, attention_mask, labels的项
         # 这些tensor的形状都是[batch_size, seq_len]
         ret = {
             'input_ids': torch.LongTensor(input_ids_ls),
@@ -122,20 +113,24 @@ class AlpacaLazyDataset(Dataset):
     
     
 if __name__ == '__main__':
-    # :add:
     parser = HfArgumentParser((MyArguments, TrainingArguments, LoraArguments))
     my_args, training_args, lora_args = parser.parse_args_into_dataclasses()
     
+    # 生成LoraConfig
+    lora_args.lora_target_modules = lora_args.lora_target_modules.split(',') \
+        if lora_args.lora_target_modules else None
     lora_config = LoraConfig(
-        task_type=lora_args.lora_task_type,
-        r=lora_args.lora_r,
-        lora_alpha=lora_args.lora_alpha,
-        lora_dropout=lora_args.lora_dropout,
-        bias=lora_args.lora_bias,
-        target_modules=lora_args.lora_target_modules.split(',') if lora_args else None
+        task_type     =lora_args.lora_task_type,
+        r             =lora_args.lora_r,
+        lora_alpha    =lora_args.lora_alpha,
+        lora_dropout  =lora_args.lora_dropout,
+        bias          =lora_args.lora_bias,
+        target_modules=lora_args.lora_target_modules
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(my_args.model_name_or_path, trust_remote_code=True, use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained(my_args.model_name_or_path, 
+                                              trust_remote_code=True, 
+                                              use_fast=False)
     if tokenizer.pad_token is None:
         # 有的模型可能没有pad_token
         #   pad_token其实不会被预测(通过labels实现)
@@ -143,7 +138,7 @@ if __name__ == '__main__':
         #   所以设置成什么都可以
         tokenizer.pad_token = tokenizer.unk_token
     
-    dataset = AlpacaLazyDataset(tokenizer=tokenizer, alpaca_data_path=my_args.data_path)    
+    dataset = AlpacaLazyDataset(tokenizer=tokenizer, alpaca_data_path=my_args.data_path)
     
     # 如果`AutoModelForCausalLM.from_pretrained`不加`torch_dtype`参数，则默认使用float32加载模型
     #   而且trainer内部不会downcast到bf16（即使training_args.bf16==True）
@@ -157,7 +152,9 @@ if __name__ == '__main__':
         torch_dtype = torch.bfloat16
     print(f'Loading model with precision: {torch_dtype}')
     
-    model = AutoModelForCausalLM.from_pretrained(my_args.model_name_or_path, trust_remote_code=True, torch_dtype=torch_dtype)
+    model = AutoModelForCausalLM.from_pretrained(my_args.model_name_or_path, 
+                                                 trust_remote_code=True, 
+                                                 torch_dtype=torch_dtype)
     
     # :add:
     model = get_peft_model(model, lora_config)
@@ -171,9 +168,9 @@ if __name__ == '__main__':
         data_collator=dataset.collate_fn
     )
     
+    # PeftModel重写了save_pretrained, 只会存储 LoRA 的权重，所以很省资源
+    #   后续可以通过merge.py来融合LoRA权重到原模型
     trainer.train()
     trainer.save_state()
-    # 默认只会存储 LoRA 的权重，所以很省资源
-    #   后续可以通过merge.py来融合LoRA权重到原模型，最终模型结构与原模型一致
     trainer.save_model(output_dir=training_args.output_dir)
     
